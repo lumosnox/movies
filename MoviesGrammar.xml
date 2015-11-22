@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<grammar xml:lang="en-US" version="1.0" root="root"
+	xmlns="http://www.w3.org/2001/06/grammar" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.w3.org/2001/06/grammar http://www.iristk.net/xml/srgs.xsd" tag-format="semantics/1.0">
+
+  <rule id="root" scope="public">	
+		<one-of>
+			<item>
+         		<ruleref uri="#yes"/>
+         		<tag>out.yes=1</tag>
+         	</item>
+            <item>
+         		<ruleref uri="#no"/>
+         		<tag>out.no=1</tag>
+         	</item>
+         	<item>
+                <item repeat="0-1">
+                    <one-of>
+                        <item>i would like to watch a</item>
+                        <item>i would like to watch a tv</item>
+                        <item>a</item>
+                        <item>tv</item>
+                        <item><ruleref uri="#initialChoice"/></item>
+                    </one-of>
+                </item>
+            </item>
+         	<item>
+         		<ruleref uri="#initialChoice"/>
+         		<tag>out.initialChoice = rules.initialChoice</tag>
+         	</item>
+         	<item>
+         		<ruleref uri="#genre"/>
+         		<tag>out.genre = rules.genre</tag>
+         	</item>
+         	<item>
+         		<ruleref uri="#keyword"/> <!-- should this be here, or use the whole grammar? -->
+         		<tag>out.keyword = rules.keyword</tag>
+	        </item>
+	        <item>
+         		<ruleref uri="#idontknow"/> <!-- should this be here, or use the whole grammar? -->
+         		<tag>out.idontknow = rules.idontknow</tag>
+	        </item>
+	         
+	        <!--  <item>
+            	<item repeat="0-1">
+                    <one-of>
+                        <item>i would </item>
+                        <item>i would like to </item>
+                        <item>i would like that </item>
+                        <item>i would like a new one </item>
+                        <item>i would like to hear a new recommendation</item>
+                        <item>i want to hear a new recommendation </item>
+                        <item>i want a new one</item>
+                        <item>please</item>
+                        <item><ruleref uri="#yes"/></item>
+                    </one-of>
+                </item>
+            </item>-->
+             
+			<!--  <item>
+            	<item repeat="0-1">
+                	<one-of>
+                        <item>i wouldn't </item>
+                        <item>i don't want to</item>
+                        <item>thank you</item>
+                        <item>thanks</item>
+                        <item><ruleref uri="#no"/></item>
+                    </one-of>
+				</item>
+			</item>-->
+       </one-of>
+	</rule>
+	
+    <rule id="initialChoice">
+        <one-of>
+            <item>movie</item>
+            <item>series</item>
+        </one-of>           
+    </rule>
+    
+    <rule id="genre">
+        <one-of>
+            <item>comedy</item> 
+            <item>horror</item>
+            <item>action</item>
+            <item>adventure</item>
+            <item>fantasy</item>
+            <item>animation</item>
+            <item>crime</item>
+            <item>thriller</item>
+            <item>drama</item>
+        </one-of>           
+    </rule>	    	
+    
+    <rule id="keyword">
+        <one-of>
+            <item>cars</item>
+            <item>explosions</item>
+        </one-of>           
+    </rule>	    
+  <rule id="idontknow">
+  	<one-of>
+  		<item>I don't know </item>
+  		<item>I do not know </item>
+  	</one-of>
+  </rule>
+  
+	<rule id="yes">
+		<one-of>
+			<item>yes</item>
+	        <item>yes I do</item>
+	        <item>sure</item>
+	        <item>yeah</item>
+	        <item>of course</item>
+	        <item>okay</item>
+	   </one-of>
+	</rule>
+
+	<rule id="no">
+		<one-of>
+			<item>no</item>
+            <item>no way</item>
+            <item>nope</item>
+            <item>not really</item>
+            <item>I don't think so</item>
+        </one-of>
+  </rule>
+  
+</grammar>

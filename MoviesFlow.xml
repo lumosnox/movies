@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<flow name="MoviesFlow" package="iristk.app.movies" 
+	initial="Idle" xmlns:this="iristk.app.movies.MoviesFlow" xmlns="iristk.flow" 
+	xmlns:p="iristk.flow.param" xmlns:agent="iristk.situated.SystemAgentFlow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="iristk.flow flow.xsd iristk.situated.SystemAgentFlow SystemAgentFlow.xsd">
+	
+	<import class="java.util.ArrayList"/>
+	
+	<param name="agent" type="iristk.situated.SystemAgentFlow"/>
+	
+	<var name="system" type="iristk.situated.SystemAgent" value="agent.getSystemAgent()"/> 
+	 
+	<var name="number" type="Integer"/>
+	
+	<var name="attributes" type="ArrayList&lt;String&gt;"/>
+	
+		<state id="Idle" extends="Dialog">
+		<onentry>
+			<agent:attendNobody/>
+		</onentry>
+		<onevent name="sense.user.enter" ><!--name="sense.user.enter">  -->
+			<agent:attend target="event:user"/>
+			<goto state="Greeting"/>
+		</onevent>
+	</state>
+	
+	<state id="Greeting" extends="Dialog">
+		<onentry>
+			<agent:prompt>Hello</agent:prompt>
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:attsys">
+			<exec>System.out.println(event.get("attsys"));</exec>
+			<agent:say>Hi there, I see you're looking for something to watch.</agent:say>
+			<goto state="Start"/>
+		</onevent>
+	</state>
+	
+	<state id="Start" extends="Dialog">
+		<onentry>
+			<exec>attributes = new ArrayList&lt;String&gt;()</exec>
+			<!-- <exec>system.putUsers("movie", 0)</exec> -->
+			<agent:prompt>Would you like me to recommend you something?</agent:prompt>
+			
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:yes">
+			<goto state="Step1_MovieOrSeries"/>
+		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:no">
+			<agent:say>Okay, maybe another time then</agent:say>
+			<goto state="Goodbye"/>
+		</onevent>
+	</state>
+	
+	<state id="Step1_MovieOrSeries" extends="Dialog">
+		<onentry>
+			<agent:prompt>Would you like to watch a movie or a tv series?</agent:prompt>			
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:initialChoice"> <!-- for either choice the rest of the program should be the same, only add movie/series to the recommendation system -->
+			<goto state="Step2_Genre"/>
+		</onevent>
+		<onevent name="sense.user.speak.side">
+			<agent:attendOther mode="'eyes'"/>
+			<agent:say>Would you like to watch the same programme?</agent:say>
+			<agent:listen/>
+		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:yes">
+			<agent:say>Ok, then, you can join.</agent:say> 
+			<agent:attendAll />
+			<goto state="Step1_MovieOrSeries"/>	
+		</onevent>
+			<onevent name="sense.user.speak" cond="event?:sem:no">
+			<agent:say>Ok, then, please wait until I am done.</agent:say> 
+			<agent:attendOther mode="'eyes'"/>
+			<agent:say>Sorry, we were interrupted. Let's try again.</agent:say> 
+			<goto state="Step1_MovieOrSeries"/>	
+		</onevent>
+	</state>
+	
+	<state id="Step2_Genre" extends="Dialog">
+		<onentry>
+			<agent:prompt>Great! What genre should it be?</agent:prompt>
+			
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:genre">
+			<goto state="Step3_1_Keywords"/>
+		</onevent>
+	</state>
+	
+	<state id="Step3_1_Keywords" extends="Dialog">
+		<onentry>
+			<agent:prompt>Finally, do you wish to add any keywords?</agent:prompt>
+			
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
+			<goto state="Step3_2_Keywords"/>
+		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:no"> 
+			<goto state="Step4_Recommend"/>
+		</onevent>
+	</state>
+	
+	<state id="Step3_2_Keywords" extends="Dialog">
+		<onentry>
+			<agent:prompt>Ok, then, go ahead!</agent:prompt>
+			
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:keyword"> 
+			<goto state="Step4_Recommend"/>
+		</onevent>
+	</state>
+	
+	<state id="Step4_Recommend" extends="Dialog">
+		<onentry>
+			<agent:say>Ok. I recommend you to watch Back to the Future. In case you don't like it I can give you another recommendation. Would you like that?</agent:say>
+			<agent:listen/>
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
+			<goto state="Step4_Recommend"/>
+		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:no">
+			<agent:attendOther mode="'eyes'" />
+			<agent:say>Sorry. Let me ask that again.</agent:say>
+			<goto state="Goodbye"/>
+		</onevent>
+	</state>
+	
+		<state id="SomeoneInterrupted" extends="Dialog"> <!-- I believe it should here already attend the person who interrupted... -->
+		<onentry>
+			<agent:say>Would you like to watch the same programme?</agent:say>
+			<agent:listen/>
+		</onentry>
+		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
+			<agent:attendAll/> <!-- will be problematic once there are more than 2 people; also will need to make sure this is erased once starting again -->
+			<goto state="Step4_Recommend"/>
+		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:no">
+			
+		<agent:say>Ok then. Hope you'll enjoy it!</agent:say>
+			<goto state="Goodbye"/>
+		</onevent>
+	</state>
+	
+	<state id="Goodbye">
+		<onentry>
+			<agent:say>Goodbye</agent:say>
+			<goto state="Idle"/>
+		</onentry>
+	</state>
+	
+	<state id="Dialog">
+		<onevent name="sense.user.speech.start" cond="system.isAttending(event) and eq(event:speakers, 1)">
+			<send event="action.gesture" p:name="'smile'"/>
+		</onevent>
+		<onevent name="sense.user.speak">
+			<agent:say>Sorry, I didn't get that.</agent:say>
+			<reentry/>
+		</onevent>
+		<onevent name="sense.user.speak.side">
+			<agent:attendOther mode="'eyes'" />
+			<agent:say>Sorry, I'm busy now. Please wait.</agent:say>		
+			<agent:attendOther mode="'eyes'" /> 
+			<reentry/>
+		</onevent>
+		<onevent name="sense.user.speak.multi">
+			<agent:say>Don't speak at the same time.</agent:say>
+			<reentry/>
+		</onevent>
+		<onevent name="sense.user.silence">
+			<agent:say>Sorry, I didn't hear anything.</agent:say>
+			<reentry/>
+		</onevent>
+		<onevent name="sense.user.leave" cond="system.isAttending(event)">
+			<if cond="system.hasUsers()">
+				<agent:attendRandom/>
+				<!--  <goto state="Guess" /> -->
+			<else />
+				<goto state="Idle"/>
+			</if>
+		</onevent>
+		<onevent name="repeat">
+			<reentry/>
+		</onevent>
+	</state>
+	
+</flow>
