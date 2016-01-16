@@ -1,136 +1,479 @@
 <?xml version="1.0" encoding="utf-8"?>
 <flow name="MoviesFlow" package="iristk.app.movies" 
-	initial="Idle" xmlns:this="iristk.app.movies.MoviesFlow" xmlns="iristk.flow" 
+	initial="Initialize" xmlns:this="iristk.app.movies.MoviesFlow" xmlns="iristk.flow" 
 	xmlns:p="iristk.flow.param" xmlns:agent="iristk.situated.SystemAgentFlow" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="iristk.flow flow.xsd iristk.situated.SystemAgentFlow SystemAgentFlow.xsd">
 	
+	
 	<import class="java.util.ArrayList"/>
+	<import class="iristk.situated.Body"/>
+	<import class="iristk.app.movies.Utils"/>
 	
 	<param name="agent" type="iristk.situated.SystemAgentFlow"/>
 	
 	<var name="system" type="iristk.situated.SystemAgent" value="agent.getSystemAgent()"/> 
 	 
-	<var name="number" type="Integer"/>
+	<var name="currentUsers" type="ArrayList&lt;Integer&gt;"/>
 	
 	<var name="attributes" type="ArrayList&lt;String&gt;"/>
+	<var name="numberToText" type="String []"/>
+	<var name="group" type="ArrayList&lt;Integer&gt;"/>
 	
-		<state id="Idle" extends="Dialog">
+	<var name="stateName" type="String"/>
+	
+	<var name="silence" type="Integer"/>
+	
+	<var name="n" type="Integer"/> <!-- how many users to interact with - without the current one -->
+	<var name="re" type="boolean"/> <!-- reentry flag-->
+
+	<state id="Initialize" extends="Dialog">
+		<onentry>
+			<exec>currentUsers = new ArrayList&lt;Integer&gt;();
+			group= new ArrayList&lt;Integer&gt;();
+			stateName="Initialize";
+			silence = 0;
+			n=0;
+			re=true;
+			system.setMaxUsers(20); 
+			//numberToText= { "zero"," one"," two"," three"," four"," five"," six", " seven", " eight"," nine", " ten",
+								    //" eleven", " twelve", " thirteen"," fourteen", " fifteen"," sixteen"," seventeen", " eighteen"," nineteen"};
+			numberToText=new String[10];
+			numberToText[0]="zero";
+			numberToText[1]=" one";
+			numberToText[2]=" two";
+			numberToText[3]=" three";
+			numberToText[4]=" four";
+			numberToText[5]=" five";
+			numberToText[6]=" six"; 
+			</exec>
+			<goto state="Idle"/>
+		</onentry>
+	</state>
+		
+	<state id="Idle" extends="Dialog">
 		<onentry>
 			<agent:attendNobody/>
+			<exec>stateName="Idle"</exec>
 		</onentry>
-		<onevent name="sense.user.enter" ><!--name="sense.user.enter">  -->
+		<onevent name="sense.user.speak**" cond="event?:attsys:true">
+			<exec>System.out.println("Idle state: user spoke and is looking at me, I should say something...")</exec>
 			<agent:attend target="event:user"/>
 			<goto state="Greeting"/>
 		</onevent>
+		<onevent name="sense.user.attend">
+			<agent:attend target="event:user"/>
+			<goto state="Greeting"/>
+		</onevent>
+		<!-- <onevent name="sense.user.enter">
+			<exec>System.out.println("agent is: "+event.get("agent"))</exec>	
+			<agent:attend target="event:user"/>
+			<goto state="Greeting"/>
+		</onevent>-->
+		
 	</state>
 	
 	<state id="Greeting" extends="Dialog">
 		<onentry>
-			<agent:prompt>Hello</agent:prompt>
-		</onentry>
-		<onevent name="sense.user.speak" cond="event?:attsys">
-			<exec>System.out.println(event.get("attsys"));</exec>
-			<agent:say>Hi there, I see you're looking for something to watch.</agent:say>
+			<exec>stateName="Greeting"</exec>
+			<agent:say>Hi there</agent:say>
+			<agent:say>I see you're looking for something to watch.</agent:say>
 			<goto state="Start"/>
-		</onevent>
+		</onentry>	
 	</state>
 	
 	<state id="Start" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onentry>
-			<exec>attributes = new ArrayList&lt;String&gt;()</exec>
-			<!-- <exec>system.putUsers("movie", 0)</exec> -->
-			<agent:prompt>Would you like me to recommend you something?</agent:prompt>
-			
+			<exec>stateName="Start"</exec>
+			<if cond="re">
+				<exec>attributes = new ArrayList&lt;String&gt;();</exec>
+				<agent:say>Would you like me to recommend you something?</agent:say>
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>		
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:yes">
-			<goto state="Step1_MovieOrSeries"/>
+		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<exec>System.out.println("Start: Attsys: "+event.get("user")+" "+event.get("attsys"))</exec>
+				<exec>String s=event.getString("user");
+					int u =Integer.parseInt(s.substring(5));
+					currentUsers.add(u); //add first user
+					//group.add(2);
+					//group.add(3);
+					//n=2;
+					//currentUsers.add(2);
+					//currentUsers.add(3);</exec>
+				<goto state="CheckGroups"/>
+				<!-- <goto state="AcceptGroup"/>-->
+				<!--<goto state="Step1_MovieOrSeries"/>-->
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+			</if>
 		</onevent>
 		<onevent name="sense.user.speak" cond="event?:sem:no">
-			<agent:say>Okay, maybe another time then</agent:say>
-			<goto state="Goodbye"/>
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<agent:say>Okay, maybe another time then</agent:say>
+				<agent:attendNobody/>
+				<goto state="Goodbye"/>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+			</if>			
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:initalChoice or event?:sem:genre or event?:sem:keyword)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Start: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
+		</onevent>
+	</state>
+	
+	<state id="CheckGroups" extends="Dialog">
+		<!--<onentry>
+			<exec>group.add(2);
+				group.add(3);
+				n=2;</exec>
+			<goto state="AcceptGroup"/>
+		</onentry>-->
+		<onevent name="sense.body">
+			<exec>System.out.println("CheckGroups: sense.body event was fired!");
+				Record rec = (Record) event.get("bodies");
+				String s = "body-"+currentUsers.get(0);
+				//Body current = (Body) rec.get(s);
+				group = Utils.calculateGroups(s,rec);
+				n=group.size();
+				int m=n+1;
+				System.out.println("A group of size "+m+" was found. Its members are: ");
+				for(int i=0;i&lt;n;i++)
+					System.out.print(group.get(i));
+				//if(n>1)	system.setMaxUsers(n);
+				//System.out.println(rec);</exec>
+			<if  cond="n>0">
+				<goto state="AcceptGroup"/>
+			<else/>
+				<goto state="Step1_MovieOrSeries"/>
+			</if>
+		</onevent>
+	</state>
+	
+	<state id="AcceptGroup" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
+		<onentry>
+			<!--  <exec>String mes="It looks like the " + numberToText[n]+" of you are a group.";</exec>
+			<send event="action.speech" p:text="'It looks like the '"/>-->
+			<!--  <send event="action.speech" p:text="numberToText[n]"/>	
+			<send event="action.speech" p:text="' of you are a group '"/>	-->	
+			<if cond="re">
+				<agent:say>It looks like the <expr>n</expr> of you are a group.</agent:say>
+				<if cond="n==1">
+					<agent:say> It looks like the two of you are a group.</agent:say>
+				</if>
+				<if cond="n==2">
+					<agent:say> It looks like the three of you are a group</agent:say>
+				</if>
+				<if cond="n==3">
+					<agent:say> It looks like the four of you are a group</agent:say>
+				</if>
+				<if cond="n==4">
+					<agent:say> It looks like the five of you are a group</agent:say>
+				</if>
+				<if cond="n==5">
+					<agent:say> It looks like the six of you are a group</agent:say>
+				</if>
+				<if cond="re">	
+					<agent:say> Will you be watching the same programme?</agent:say>
+				</if>
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>
+		</onentry>
+		<onevent name="sense.user.speak**" cond="event?:sem:yes">
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:say>Let's get started then</agent:say>
+					<exec>for(int i=0;i&lt;n;i++){
+						currentUsers.add(group.get(i));}
+					</exec>
+					<goto state="Step1_MovieOrSeries"/>
+				<else />
+					<agent:say>I wasn't talking to you.</agent:say>
+					<reentry/>
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
+		</onevent>
+		<onevent name="sense.user.speak**" cond="event?:sem:no">
+			<!-- <exec>system.setMaxUsers(2);</exec>-->
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:say>I see. Let's start with you then.</agent:say>
+					<goto state="Step1_MovieOrSeries"/>
+				<else />
+					<agent:say>I wasn't talking to you.</agent:say>
+					<reentry/>
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:initalChoice or event?:sem:genre or event?:sem:keyword)">
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Start: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
 	<state id="Step1_MovieOrSeries" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onentry>
-			<agent:prompt>Would you like to watch a movie or a tv series?</agent:prompt>			
+			<exec>stateName="Step1_MovieOrSeries" </exec>
+			<if cond="re">
+				<agent:say>Would you like to watch a movie or a tv series?</agent:say>
+				<!--<send event="action.gaze" p:location="'middle'" p:mode="'headpose'" p:agent="'system'"/>-->
+				<!--  <agent:attend target="'user-3'"/>-->
+				<!--  <agent:attend target="'user-3'"/>
+				<agent:attend target="'user-1'"/>	-->
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>		
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:initialChoice"> <!-- for either choice the rest of the program should be the same, only add movie/series to the recommendation system -->
-			<goto state="Step2_Genre"/>
+		
+		<onevent name="sense.user.speak**" cond="event?:sem:initialChoice"> <!-- should add an option with "don't know,or add it at the end!!!"-->
+			<!--<exec>System.out.println("Step1: Attsys: "+event.get("user")+" "+event.get("attsys"))</exec>	-->
+			<if cond="threshold &lt; asFloat(event:conf)">	
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<goto state="Step2_Genre"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
 		</onevent>
-		<onevent name="sense.user.speak.side">
-			<agent:attendOther mode="'eyes'"/>
-			<agent:say>Would you like to watch the same programme?</agent:say>
-			<agent:listen/>
-		</onevent>
-		<onevent name="sense.user.speak" cond="event?:sem:yes">
-			<agent:say>Ok, then, you can join.</agent:say> 
-			<agent:attendAll />
-			<goto state="Step1_MovieOrSeries"/>	
-		</onevent>
-			<onevent name="sense.user.speak" cond="event?:sem:no">
-			<agent:say>Ok, then, please wait until I am done.</agent:say> 
-			<agent:attendOther mode="'eyes'"/>
-			<agent:say>Sorry, we were interrupted. Let's try again.</agent:say> 
-			<goto state="Step1_MovieOrSeries"/>	
+		<onevent name="sense.user.speak" cond="(event?:sem:yes or event?:sem:no or event?:sem:genre or event?:sem:keyword)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Step1: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
 	<state id="Step2_Genre" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onentry>
-			<agent:prompt>Great! What genre should it be?</agent:prompt>
-			
+			<exec>stateName="Step2_Genre"</exec>
+			<if cond="re">
+				<agent:say>Great! What genre should it be?</agent:say>	
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>	
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:genre">
-			<goto state="Step3_1_Keywords"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:genre">
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<goto state="Step3_1_Keywords"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:yes or event?:sem:no or event?:sem:keyword or event?:sem:initialChoice)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Step2: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
 	<state id="Step3_1_Keywords" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onentry>
-			<agent:prompt>Finally, do you wish to add any keywords?</agent:prompt>
-			
+			<exec>stateName="Step3_1_Keywords"</exec>
+			<if cond="re">
+				<agent:say>Finally, do you wish to add any keywords?</agent:say>
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>		
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
-			<goto state="Step3_2_Keywords"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:yes"> 
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<goto state="Step3_2_Keywords"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
 		</onevent>
-		<onevent name="sense.user.speak" cond="event?:sem:no"> 
-			<goto state="Step4_Recommend"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:no">
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<goto state="Step4_Recommend"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if> 
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:genre or event?:sem:initialChoice or event?:sem:keyword)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Step3_1: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
+	<!-- What if a user says multiple keywords??? -->
 	<state id="Step3_2_Keywords" extends="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onentry>
-			<agent:prompt>Ok, then, go ahead!</agent:prompt>
-			
+			<exec>stateName="Step3_2_Keywords"</exec>
+			<if cond="re">
+				<agent:say>Ok, then, go ahead!</agent:say>
+			</if>
+			<exec>re=true</exec>
+			<agent:listen/>		
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:keyword"> 
-			<goto state="Step4_Recommend"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:keyword"> 
+			<exec>System.out.println("Step3_2: the user has said a keyword1");</exec>
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<exec>System.out.println("Step3_2: the user has said a keyword2");</exec>
+					<agent:attend target="event:user"/>
+					<goto state="Step4_Recommend"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if>
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if> 
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:yes or event?:sem:no or event?:sem:genre or event?:sem:initialChoice)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Step3_2: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
 	<state id="Step4_Recommend" extends="Dialog">
-		<onentry>
-			<agent:say>Ok. I recommend you to watch Back to the Future. In case you don't like it I can give you another recommendation. Would you like that?</agent:say>
+		<param name="threshold" type="Float" default="0.7"/>
+		<onentry>	
+			<exec>stateName="Step4_Recommend"</exec>
+			<if cond="re">
+				<agent:say>Ok. I recommend you to watch Back to the Future. In case you don't like it I can give you another recommendation. Would you like that?</agent:say>
+			</if>
+			<exec>re=true</exec>
 			<agent:listen/>
 		</onentry>
-		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
-			<goto state="Step4_Recommend"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:yes">
+			<if cond="threshold &lt; asFloat(event:conf)">
+		 		<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<goto state="Step4_Recommend"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if> 
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
 		</onevent>
-		<onevent name="sense.user.speak" cond="event?:sem:no">
-			<agent:attendOther mode="'eyes'" />
-			<agent:say>Sorry. Let me ask that again.</agent:say>
-			<goto state="Goodbye"/>
+		<onevent name="sense.user.speak**" cond="event?:sem:no">
+			<if cond="threshold &lt; asFloat(event:conf)">
+				<if cond="Utils.canUserAnswer(event,currentUsers)">
+					<agent:attend target="event:user"/>
+					<agent:say>Ok then. Hope you'll enjoy it!</agent:say>
+					<goto state="Goodbye"/>
+				<else/> 
+					<agent:attend target="event:user"/>
+					<agent:say>I'm busy now, please wait.</agent:say>
+					<exec>String s= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+					<reentry/>	<!-- Should go back and ask again -->
+				</if> 
+			<else/>
+				<agent:say>I'm not sure enough i got that right. Please repeat.</agent:say>
+				<agent:listen/>
+			</if>
+		</onevent>
+		<onevent name="sense.user.speak" cond="(event?:sem:genre or event?:sem:initialChoice or event?:sem:keyword)"> 
+			<if cond="event?:attsys:true">
+				<exec>System.out.println("Start: user said something else")</exec>
+				<agent:say>Sorry, I didn't get that</agent:say>
+				<reentry/>
+			<else/> 
+				<agent:listen/>
+			</if>
 		</onevent>
 	</state>
 	
-		<state id="SomeoneInterrupted" extends="Dialog"> <!-- I believe it should here already attend the person who interrupted... -->
+	<!--<state id="SomeoneInterrupted" extends="Dialog"> 
 		<onentry>
+			<exec>stateName="SomeoneInterrupted"</exec>
 			<agent:say>Would you like to watch the same programme?</agent:say>
 			<agent:listen/>
 		</onentry>
 		<onevent name="sense.user.speak" cond="event?:sem:yes"> 
-			<agent:attendAll/> <!-- will be problematic once there are more than 2 people; also will need to make sure this is erased once starting again -->
+			<agent:attendAll/> 
 			<goto state="Step4_Recommend"/>
 		</onevent>
 		<onevent name="sense.user.speak" cond="event?:sem:no">
@@ -138,43 +481,88 @@
 		<agent:say>Ok then. Hope you'll enjoy it!</agent:say>
 			<goto state="Goodbye"/>
 		</onevent>
-	</state>
+	</state>-->
 	
 	<state id="Goodbye">
 		<onentry>
+			<exec>stateName="Goodbye"</exec>
 			<agent:say>Goodbye</agent:say>
-			<goto state="Idle"/>
+			<goto state="Initialize"/>
 		</onentry>
 	</state>
 	
 	<state id="Dialog">
+		<param name="threshold" type="Float" default="0.7"/>
 		<onevent name="sense.user.speech.start" cond="system.isAttending(event) and eq(event:speakers, 1)">
-			<send event="action.gesture" p:name="'smile'"/>
+			 <send event="action.gesture" p:name="'smile'"/>
 		</onevent>
-		<onevent name="sense.user.speak">
+		<onevent name="sense.user.speak" cond="event?:attsys:true">
+			<exec>System.out.println("Did not understand +user was looking at me")</exec>
 			<agent:say>Sorry, I didn't get that.</agent:say>
 			<reentry/>
 		</onevent>
-		<onevent name="sense.user.speak.side">
-			<agent:attendOther mode="'eyes'" />
-			<agent:say>Sorry, I'm busy now. Please wait.</agent:say>		
-			<agent:attendOther mode="'eyes'" /> 
+		<onevent name="sense.user.speak" cond="event?:attsys:false">
+			<exec>System.out.println("Did not understand +user was not looking at me")</exec>
+			<exec>re=false</exec>
 			<reentry/>
 		</onevent>
+		<onevent name="sense.user.speak" cond="event?:sem:idontknow">
+			<agent:say>Choose something</agent:say>
+			<reentry/>
+		</onevent>
+		<!--<onevent name="sense.user.speak.side">
+			<exec>String s1=event.getString("user");
+			
+				
+				int u1 =Integer.parseInt(s1.substring(5));
+				System.out.println("Side user is speaking, this is before the attendOther command: "+u1);</exec>
+			<agent:attendOther mode="'eyes'" />
+			<agent:say>Sorry, I'm busy now. Please wait.</agent:say>		
+			<agent:attendOther mode="'eyes'" />
+			<agent:say>Sorry for the interruption.</agent:say>
+			<exec>String s2=event.getString("user");
+				
+				int u2 =Integer.parseInt(s2.substring(5));
+				System.out.println("Side user is speaking, id is: "+u2);</exec>
+			<reentry/>
+		</onevent>-->
 		<onevent name="sense.user.speak.multi">
 			<agent:say>Don't speak at the same time.</agent:say>
 			<reentry/>
 		</onevent>
 		<onevent name="sense.user.silence">
-			<agent:say>Sorry, I didn't hear anything.</agent:say>
-			<reentry/>
+			<if cond="silence&lt;2">
+				<agent:say>Sorry, I didn't hear anything.</agent:say>
+				<exec> silence++</exec>
+				<reentry/>
+			<else /> <goto state="Goodbye"/>
+			</if>
 		</onevent>
-		<onevent name="sense.user.leave" cond="system.isAttending(event)">
-			<if cond="system.hasUsers()">
+		<onevent name="sense.user.leave">
+			<exec>String s=event.getString("user");
+				boolean wasCurrent=false;
+				  int u= Integer.parseInt(s.substring(5));
+				  if(currentUsers.contains(u)){ //if user was being attended to by the system, delete him
+				  	currentUsers.remove(Integer.valueOf(u));<!-- this should delete the user that left!!! -->
+				  	System.out.println("someone left,the list of users is: "+currentUsers);
+				  	wasCurrent=true;}
+			</exec>
+			<if cond="stateName.equals('Start') or stateName.equals('Greeting')" >
+				<exec>System.out.println("User left in state Start/Greeting")</exec>
+				<goto state="Initialize"/>
+			</if>
+			<!--  <if cond="system.hasUsers()">
 				<agent:attendRandom/>
-				<!--  <goto state="Guess" /> -->
 			<else />
 				<goto state="Idle"/>
+			</if>-->
+			<if cond="wasCurrent">
+				<if cond="currentUsers.size()>0">
+					<exec>String s2= "user-"+currentUsers.get(0);</exec>
+					<agent:attend target="s"/>
+				<else />
+					<goto state="Initialize"/>
+				</if>
 			</if>
 		</onevent>
 		<onevent name="repeat">
