@@ -14,6 +14,10 @@
          		<tag>out.no=1</tag>
          	</item>
          	<item>
+         		<ruleref uri="#hello"/>
+         		<tag>out.hello=rules.hello</tag>
+         	</item>
+         	<item>
                 <item repeat="0-1">
                     <one-of>
                         <item>i would like to watch a</item>
@@ -31,41 +35,17 @@
          		<tag>out.genre = rules.genre</tag>
          	</item>
          	<item>
-         		<ruleref uri="#keyword"/> <!-- should this be here, or use the whole grammar? -->
-         		<tag>out.keyword = rules.keyword</tag>
+         		<ruleref uri="#number"/> 
+         		<tag>out.number = rules.number</tag>
 	        </item>
 	        <item>
-         		<ruleref uri="#idontknow"/> <!-- should this be here, or use the whole grammar? -->
+         		<ruleref uri="#idontknow"/> 
          		<tag>out.idontknow = rules.idontknow</tag>
 	        </item>
-	         
-	        <!--  <item>
-            	<item repeat="0-1">
-                    <one-of>
-                        <item>i would </item>
-                        <item>i would like to </item>
-                        <item>i would like that </item>
-                        <item>i would like a new one </item>
-                        <item>i would like to hear a new recommendation</item>
-                        <item>i want to hear a new recommendation </item>
-                        <item>i want a new one</item>
-                        <item>please</item>
-                        <item><ruleref uri="#yes"/></item>
-                    </one-of>
-                </item>
-            </item>-->
-             
-			<!--  <item>
-            	<item repeat="0-1">
-                	<one-of>
-                        <item>i wouldn't </item>
-                        <item>i don't want to</item>
-                        <item>thank you</item>
-                        <item>thanks</item>
-                        <item><ruleref uri="#no"/></item>
-                    </one-of>
-				</item>
-			</item>-->
+	        <item>
+	        <ruleref uri="#recommend"/>
+	        	<tag>out.recommend = rules.recommend</tag>
+	        </item>
        </one-of>
 	</rule>
 	
@@ -73,7 +53,6 @@
         <one-of>
             <item>movie</item>
             <item>series</item>
-            <item>tv series</item>
         </one-of>           
     </rule>
     
@@ -88,13 +67,26 @@
             <item>crime</item>
             <item>thriller</item>
             <item>drama</item>
+            <item>documentary</item>
+            <item>romance</item>
+            <item>science fiction</item>
+            <item>western</item>
+            <item>family</item>
         </one-of>           
     </rule>	    	
     
-    <rule id="keyword">
+    <rule id="number">
         <one-of>
-            <item>cars</item>
-            <item>explosions</item>
+            <item>one</item>
+            <item>two</item>
+            <item>three</item>
+            <item>four</item>
+            <item>five</item>
+            <item>six</item>
+            <item>seven</item>
+            <item>eight</item>
+            <item>nine</item>
+            <item>ten</item>
         </one-of>           
     </rule>	    
   <rule id="idontknow">
@@ -104,10 +96,16 @@
   	</one-of>
   </rule>
   
+  <rule id="recommend">
+  	<one-of>
+  		<item>recommend</item>
+  		<item>recommendation</item>
+  	</one-of>
+  </rule>
+  
 	<rule id="yes">
 		<one-of>
 			<item>yes</item>
-	        <item>yes I do</item>
 	        <item>sure</item>
 	        <item>yeah</item>
 	        <item>of course</item>
@@ -118,11 +116,14 @@
 	<rule id="no">
 		<one-of>
 			<item>no</item>
-            <item>no way</item>
             <item>nope</item>
             <item>not really</item>
-            <item>I don't think so</item>
+            <item>don't think so</item>
         </one-of>
+  </rule>
+  
+  <rule id="hello">
+  	<item>hello</item>
   </rule>
   
 </grammar>
