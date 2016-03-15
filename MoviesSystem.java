@@ -10,6 +10,8 @@
  ******************************************************************************/
 package iristk.app.movies;
 
+import java.io.File;
+
 import iristk.situated.SituatedDialogSystem;
 import iristk.situated.SystemAgentFlow;
 import iristk.speech.SpeechGrammarContext;
@@ -29,7 +31,7 @@ public class MoviesSystem {
 	
 		system.setLanguage(Language.ENGLISH_US);
 	
-		//system.setupLogging(new File("c:/iristk_logging"), true);
+		system.setupLogging(new File("C:/Users/Yvaine/IrisTK/app/movies/src/iristk/app/movies/Logging"), true);
 		
 		system.setupGUI();
 		
@@ -39,8 +41,9 @@ public class MoviesSystem {
 		//system.setupStereoMicrophones(new WindowsRecognizerFactory());
 		system.setupKinectMicrophone(new KinectRecognizerFactory());
 				
-		//system.connectToBroker("furhat", "127.0.0.1");
-		system.setupFace(new WindowsSynthesizer(), Gender.FEMALE);
+		////system.connectToBroker("furhat", "130.209.247.76");
+		//system.connectToBroker("furhat", "172.20.89.80");
+		system.setupFace(new WindowsSynthesizer(), Gender.MALE);
 		
 		system.addModule(new FlowModule(new MoviesFlow(systemAgentFlow)));
 		system.loadContext("default", new SpeechGrammarContext(new SRGSGrammar(getClass().getResource("MoviesGrammar.xml").toURI())));

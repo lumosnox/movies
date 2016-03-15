@@ -232,6 +232,7 @@
 	<state id="CheckGroups" extends="Dialog">
 		<onevent name="sense.body">
 			<exec>System.out.println("CheckGroups: sense.body event was fired!");
+			    System.out.println("The map is: "+userBodies);
 				Record rec = (Record) event.get("bodies");
 				String s = "body-"+currentUsers.get(0);
 				//Body current = (Body) rec.get(s);
@@ -298,11 +299,12 @@
 		<onevent name="sense.user.speak**" cond="event?:sem:yes">
 			<if cond="Utils.canUserAnswer(event,currentUsers)">
 				<if cond="threshold &lt; asFloat(event:conf)">
-					<agent:say>In this case everyon can participate. Let's get started. </agent:say>
+					<agent:say>In this case everyone can participate. Let's get started. </agent:say>
 					<!-- The main user has agreed that they are in a group. 
 						Add the rest of the member to the currentUsers so that they are allowed to answer question. -->
 					<exec>for(int i=0;i&lt;n;i++){
 							currentUsers.add(group.get(i));}
+							System.out.println("CurrentUsers are: "+currentUsers);
 					</exec>
 					<exec>logger.logMessage("User said yes.");</exec>
 					<goto state="Step1_MovieOrSeries"/>
@@ -391,7 +393,7 @@
 						  logger.logMessage("User chose "+ event.getString("text"));
 					</exec>
 					<exec>currentUser=event.getString("user")</exec>
-					<exec>String choiceMsg = SpecificMessage.movieSeriesSpecificMessage(event.getString("sem"))</exec>
+					<exec>String choiceMsg = SpecificMessage.movieSeriesSpecificMessage(event.getString("text"))</exec>
 					<send event="action.gesture" p:name="'smile'"/>
 					<send event="action.speech" p:text="choiceMsg"/>
 					<wait msec="1000"/>
@@ -425,7 +427,7 @@
 				<agent:listen/>
 			</if>
 		</onevent>
-		<onevent name="sense.user.speak**">
+		<onevent name="sense.user.speak.side">
 			<exec>System.out.println("Someone is talking; ignore and listen further");
 				  logger.logMessage("Someone said something - ignore and listen further");
 			</exec>
@@ -891,12 +893,12 @@
 		<onevent name="sense.user.speech.start" cond="system.isAttending(event) and eq(event:speakers, 1)">
 			 <send event="action.gesture" p:name="'smile'"/>
 		</onevent>
-		<!-- <onevent name="sense.user.speak" cond="event?:attsys:true">
-			<exec>System.out.println("Did not understand +user was looking at me")</exec>
+		<onevent name="sense.user.speak">
+			<exec>System.out.println("Did not understand end of prog")</exec>
 			<agent:say>Sorry, I didn't get that.</agent:say>
 			<exec>entryMessage[stateId]=true</exec>
 			<reentry/>
-		</onevent> -->
+		</onevent>
 		<onevent name="sense.user.speak" cond="event?:attsys:false">
 			<exec>System.out.println("Did not understand +user was not looking at me")</exec>
 			<exec>entryMessage[stateId]=false</exec>
@@ -912,13 +914,15 @@
 			<reentry/>
 		</onevent>
 		<onevent name="sense.user.silence">
-			<if cond="silenceTimeout&lt;2"> <!-- if a user is silent for more than 3 times, go to state Goodbye -->
-				<agent:say>Sorry, I didn't hear anything.</agent:say>
-				<exec> silenceTimeout++;
+		    <if cond="!currentUser.equals('')"> <!-- if there's a user currently being attended -->
+				<if cond="silenceTimeout&lt;2"> <!-- if a user is silent for more than 3 times, go to state Goodbye -->
+					<agent:say>Sorry, I didn't hear anything.</agent:say>
+					<exec> silenceTimeout++;
 					   logger.logMessage("User silence.");
-				</exec>
-				<reentry/>
-			<else /> <goto state="Goodbye"/>
+					</exec>
+					<reentry/>
+				<else /> <goto state="Goodbye"/>
+				</if>
 			</if>
 		</onevent>
 		<onevent name="sense.user.leave">
@@ -951,7 +955,7 @@
 		</onevent>
 		<onevent name="sense.user.enter">
 			<exec>userBodies.put(event.getString("user"),event.getString("sensor").substring(7));</exec>
-			<exec>System.out.println("Adding a user that just entered "+stateName);
+			<exec>System.out.println("Adding a user that just entered "+stateName+". Adding user "+event.getString("user")+ " with body "+event.getString("sensor").substring(7)+" to the map.");
 				  logger.logMessage("Adding user "+event.getString("user")+ " with body "+event.getString("sensor").substring(7)+" to the map.");
 			</exec>	
 			<reentry/>
